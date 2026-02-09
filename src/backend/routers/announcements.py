@@ -4,7 +4,7 @@ Announcements endpoints for the High School Management System API
 
 from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import Dict, Any, List, Optional
-from datetime import datetime
+from datetime import datetime, time
 from bson import ObjectId
 import logging
 
@@ -46,6 +46,20 @@ def validate_message(message: str) -> None:
         raise HTTPException(
             status_code=400, 
             detail=f"Message too long (max {MAX_MESSAGE_LENGTH} characters)")
+
+
+def normalize_date_to_end_of_day(date_str: str) -> datetime:
+    """
+    Parse a YYYY-MM-DD date string and normalize it to end-of-day (23:59:59).
+    This allows users to select 'today' as an expiration date without it being rejected.
+    """
+    try:
+        parsed_date = datetime.fromisoformat(date_str)
+        # Set time to end of day (23:59:59)
+        return datetime.combine(parsed_date.date(), time(23, 59, 59))
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
 
 def serialize_announcement(announcement: Dict[str, Any]) -> Dict[str, Any]:
@@ -125,24 +139,19 @@ def create_announcement(
     validate_message(message)
 
     # Validate and parse dates
-    try:
-        exp_date = datetime.fromisoformat(expiration_date)
-        
-        # Ensure expiration is in the future
-        if exp_date < datetime.utcnow():
-            raise HTTPException(
-                status_code=400, detail="Expiration date must be in the future")
-        
-        start = None
-        if start_date:
-            start = datetime.fromisoformat(start_date)
-            if start > exp_date:
-                raise HTTPException(
-                    status_code=400, detail="Start date must be before expiration date")
-    except ValueError as e:
-        logger.error(f"Date parsing error: {str(e)}")
+    exp_date = normalize_date_to_end_of_day(expiration_date)
+    
+    # Ensure expiration is in the future
+    if exp_date < datetime.utcnow():
         raise HTTPException(
-            status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+            status_code=400, detail="Expiration date must be in the future")
+    
+    start = None
+    if start_date:
+        start = normalize_date_to_end_of_day(start_date)
+        if start > exp_date:
+            raise HTTPException(
+                status_code=400, detail="Start date must be before expiration date")
 
     # Create announcement document
     announcement = {
@@ -197,15 +206,11 @@ def update_announcement(
             update_fields["message"] = message
         
         if expiration_date is not None:
-            try:
-                exp_date = datetime.fromisoformat(expiration_date)
-                if exp_date < datetime.utcnow():
-                    raise HTTPException(
-                        status_code=400, detail="Expiration date must be in the future")
-                update_fields["expiration_date"] = exp_date
-            except ValueError:
+            exp_date = normalize_date_to_end_of_day(expiration_date)
+            if exp_date < datetime.utcnow():
                 raise HTTPException(
-                    status_code=400, detail="Invalid expiration date format. Use YYYY-MM-DD")
+                    status_code=400, detail="Expiration date must be in the future")
+            update_fields["expiration_date"] = exp_date
         
         if start_date is not None:
             if start_date == "":
@@ -215,16 +220,12 @@ def update_announcement(
                     {"$unset": {"start_date": ""}}
                 )
             else:
-                try:
-                    start = datetime.fromisoformat(start_date)
-                    exp = update_fields.get("expiration_date", announcement.get("expiration_date"))
-                    if start > exp:
-                        raise HTTPException(
-                            status_code=400, detail="Start date must be before expiration date")
-                    update_fields["start_date"] = start
-                except ValueError:
+                start = normalize_date_to_end_of_day(start_date)
+                exp = update_fields.get("expiration_date", announcement.get("expiration_date"))
+                if start > exp:
                     raise HTTPException(
-                        status_code=400, detail="Invalid start date format. Use YYYY-MM-DD")
+                        status_code=400, detail="Start date must be before expiration date")
+                update_fields["start_date"] = start
 
         if update_fields:
             announcements_collection.update_one(
