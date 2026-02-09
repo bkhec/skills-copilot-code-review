@@ -81,6 +81,20 @@ def normalize_date_to_end_of_day(date_str: str) -> datetime:
             status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
 
 
+def normalize_date_to_start_of_day(date_str: str) -> datetime:
+    """
+    Parse a YYYY-MM-DD date string and normalize it to start-of-day (00:00:00).
+    This is used for start dates to create a valid time window.
+    """
+    try:
+        parsed_date = datetime.fromisoformat(date_str)
+        # Set time to start of day (00:00:00)
+        return datetime.combine(parsed_date.date(), time(0, 0, 0))
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="Invalid date format. Use YYYY-MM-DD")
+
+
 def serialize_announcement(announcement: Dict[str, Any]) -> Dict[str, Any]:
     """Convert MongoDB document to JSON-serializable format"""
     if "_id" in announcement:
@@ -167,7 +181,7 @@ def create_announcement(
     
     start = None
     if start_date:
-        start = normalize_date_to_end_of_day(start_date)
+        start = normalize_date_to_start_of_day(start_date)
         if start > exp_date:
             raise HTTPException(
                 status_code=400, detail="Start date must be before expiration date")
@@ -239,7 +253,7 @@ def update_announcement(
                     {"$unset": {"start_date": ""}}
                 )
             else:
-                start = normalize_date_to_end_of_day(start_date)
+                start = normalize_date_to_start_of_day(start_date)
                 exp = update_fields.get("expiration_date", announcement.get("expiration_date"))
                 if start > exp:
                     raise HTTPException(
