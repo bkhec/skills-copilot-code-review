@@ -53,8 +53,6 @@ def init_database():
 
     # Initialize announcements if empty
     if announcements_collection.count_documents({}) == 0:
-        from datetime import datetime, timedelta
-        
         for announcement in initial_announcements:
             announcements_collection.insert_one(announcement)
     
@@ -225,7 +223,7 @@ from datetime import datetime, timedelta
 
 initial_announcements = [
     {
-        "message": "📢 Activity registration is open until the end of the month. Don't lose your spot!",
+        "message": "Activity registration is open until the end of the month. Don't lose your spot!",
         "expiration_date": datetime.utcnow() + timedelta(days=30),
         "created_at": datetime.utcnow(),
         "created_by": "principal"

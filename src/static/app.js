@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeAnnouncementsModal = document.querySelector(".close-announcements-modal");
   const announcementForm = document.getElementById("announcement-form");
   const announcementsList = document.getElementById("announcements-list");
-  const announcementMessageDiv = document.getElementById("announcement-message");
+  const announcementMessageDiv = document.getElementById("announcement-status-message");
   const announcementContainer = document.getElementById("announcement-container");
   const cancelEditButton = document.getElementById("cancel-edit-button");
   const formTitle = document.getElementById("form-title");
@@ -1071,7 +1071,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const editId = document.getElementById("edit-announcement-id").value;
     
     try {
-      let url = `/announcements?teacher_username=${encodeURIComponent(currentUser.username)}`;
+      let url;
       let method = "POST";
       
       const params = new URLSearchParams();
