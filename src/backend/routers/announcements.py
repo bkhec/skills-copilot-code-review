@@ -22,7 +22,25 @@ MAX_MESSAGE_LENGTH = 500
 
 
 def verify_teacher(teacher_username: Optional[str] = Query(None)) -> Dict[str, Any]:
-    """Verify teacher authentication and return teacher document"""
+    """
+    Verify teacher authentication and return teacher document.
+    
+    SECURITY NOTE: This function validates that a teacher exists in the database
+    based on a username query parameter. This authentication pattern is used
+    consistently across all protected endpoints in this application (see 
+    activities.py signup/unregister endpoints and auth.py check-session).
+    
+    LIMITATION: This approach trusts the client-provided username and does not
+    validate server-side session tokens or credentials. A proper implementation
+    would use session tokens, JWTs, or similar server-side authentication
+    mechanisms. This is a known limitation of the entire application's 
+    authentication system that should be addressed in a future security update.
+    
+    For the current implementation, additional validation includes:
+    - Logging all authentication attempts for audit purposes
+    - Verifying the teacher exists in the database
+    - Returning 401 errors for invalid credentials
+    """
     if not teacher_username:
         logger.warning("Authentication attempt without username")
         raise HTTPException(
@@ -34,6 +52,7 @@ def verify_teacher(teacher_username: Optional[str] = Query(None)) -> Dict[str, A
         raise HTTPException(
             status_code=401, detail="Invalid teacher credentials")
     
+    logger.info(f"Teacher authenticated: {teacher_username}")
     return teacher
 
 
